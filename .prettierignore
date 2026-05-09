@@ -1,0 +1,7 @@
+dist/**
+dist-electron/**
+node_modules/**
+release/**
+src/routeTree.gen.ts
+.agents/**
+.cursor/**

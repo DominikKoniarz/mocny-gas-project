@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "target": "ESNext",
+        "module": "ESNext",
+        "lib": ["dom", "ESNext"],
+        "strict": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "allowImportingTsExtensions": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["./src/*"]
+        },
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "noEmit": true,
+        "isolatedModules": true
+    },
+    "include": ["src/**/*", "*.ts", "*.tsx", "eslint.config.ts"],
+    "exclude": ["node_modules", "dist", "dist-electron"]
+}
