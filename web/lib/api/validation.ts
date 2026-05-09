@@ -12,6 +12,7 @@ const optionalDateSchema = z
     .optional();
 
 export const platformSchema = z.enum(["mac", "windows"]);
+export const releaseFileKindSchema = z.enum(["metadata", "artifact", "blockmap"]);
 export const updateStatusSchema = z.enum([
     "started",
     "downloaded",
@@ -73,6 +74,7 @@ export const adminLogsQuerySchema = z.object({
 
 export const uploadFormSchema = z.object({
     platform: platformSchema,
+    kind: releaseFileKindSchema,
     file: z.custom<File>(
         (value) => value instanceof File && value.size > 0,
         "A non-empty file is required",

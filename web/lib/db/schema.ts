@@ -14,6 +14,11 @@ export const releaseFiles = sqliteTable("release_files", {
         .notNull()
         .references(() => releases.id, { onDelete: "cascade" }),
     platform: text("platform", { enum: ["mac", "windows"] }).notNull(),
+    kind: text("kind", {
+        enum: ["metadata", "artifact", "blockmap"],
+    })
+        .notNull()
+        .default("artifact"),
     fileName: text("file_name").notNull(),
     fileSize: integer("file_size").notNull(),
     storagePath: text("storage_path").notNull(),

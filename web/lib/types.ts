@@ -1,3 +1,7 @@
+export type Platform = "mac" | "windows";
+
+export type ReleaseFileKind = "metadata" | "artifact" | "blockmap";
+
 export interface ReleaseFile {
     fileName: string;
     fileSize: number;
@@ -9,6 +13,8 @@ export interface ReleaseFile {
     signingKeyId: string | null;
     downloadUrl: string;
     downloadCount: number;
+    platform: Platform;
+    kind: ReleaseFileKind;
 }
 
 export interface Release {
@@ -17,11 +23,9 @@ export interface Release {
     releaseNotes: string;
     createdAt: Date;
     isEnabled: boolean;
-    macFile?: ReleaseFile;
-    windowsFile?: ReleaseFile;
+    files: ReleaseFile[];
 }
 
-export type Platform = "mac" | "windows";
 export type UpdateStatus = "started" | "downloaded" | "installed" | "failed";
 
 export interface UpdateLog {

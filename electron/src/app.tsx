@@ -11,18 +11,12 @@ const stateLabels: Record<UpdateState, string> = {
     checking: "Checking",
     available: "Update available",
     downloading: "Downloading",
-    verifying: "Verifying",
     installing: "Installing",
     failed: "Failed",
     "up-to-date": "Up to date",
 };
 
-const busyStates: UpdateState[] = [
-    "checking",
-    "downloading",
-    "verifying",
-    "installing",
-];
+const busyStates: UpdateState[] = ["checking", "downloading", "installing"];
 
 function formatBytes(bytes?: number): string {
     if (!bytes) return "Unknown size";
@@ -40,7 +34,7 @@ function formatBytes(bytes?: number): string {
 }
 
 function releaseDate(release?: UpdateReleaseMetadata): string {
-    if (!release) return "No release loaded";
+    if (!release?.releaseDate) return "No release loaded";
 
     return new Intl.DateTimeFormat(undefined, {
         dateStyle: "medium",
@@ -49,7 +43,7 @@ function releaseDate(release?: UpdateReleaseMetadata): string {
 }
 
 function primaryLabel(status: UpdateStatus): string {
-    if (status.state === "available") return "Install update";
+    if (status.state === "available") return "Download & install";
     if (status.state === "failed") return "Retry check";
     if (status.state === "up-to-date") return "Check again";
     if (busyStates.includes(status.state)) return stateLabels[status.state];
@@ -71,7 +65,7 @@ export default function App() {
 
     const secondaryText = useMemo(() => {
         if (status.state === "available") {
-            return `Version ${status.latestVersion} is signed and ready to install.`;
+            return `Version ${status.latestVersion} is ready to download and install.`;
         }
         if (status.state === "up-to-date") {
             return "You already have the latest available version.";
@@ -80,7 +74,7 @@ export default function App() {
             return status.error ?? "Update failed.";
         }
         if (status.state === "idle") {
-            return "Secure updates verify hash and Ed25519 signature before install.";
+            return "Updates are delivered via the official update feed and verified by the OS installer.";
         }
 
         return "Do not close the app while update work is in progress.";
@@ -124,9 +118,8 @@ export default function App() {
                             </span>
                         </div>
                         <p className="text-muted-foreground text-sm leading-6">
-                            Updates are fetched from the release server,
-                            downloaded locally, hash checked, signature verified,
-                            then handed to the OS installer.
+                            Updates are checked through the release server and
+                            installed by the system updater.
                         </p>
                     </header>
 
@@ -154,9 +147,7 @@ export default function App() {
                             {secondaryText}
                         </p>
 
-                        {["downloading", "verifying", "installing"].includes(
-                            status.state,
-                        ) && (
+                        {["downloading", "installing"].includes(status.state) && (
                             <div className="mt-5">
                                 <div className="bg-secondary h-2 overflow-hidden rounded-full">
                                     <div
@@ -190,10 +181,10 @@ export default function App() {
                                 Artifact
                             </p>
                             <p className="mt-2 truncate text-lg font-medium">
-                                {release?.file.fileName ?? "None"}
+                                {release?.fileName ?? "None"}
                             </p>
                             <p className="text-muted-foreground mt-1 text-sm">
-                                {formatBytes(release?.file.fileSize)}
+                                {formatBytes(release?.fileSize)}
                             </p>
                         </div>
                     </div>

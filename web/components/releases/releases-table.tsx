@@ -48,6 +48,10 @@ export function ReleasesTable({
     onUploadFile,
 }: ReleasesTableProps) {
     const [deleteId, setDeleteId] = useState<string | null>(null);
+    const artifactFor = (release: Release, platform: "mac" | "windows") =>
+        release.files.find(
+            (file) => file.platform === platform && file.kind === "artifact",
+        );
 
     const handleDelete = () => {
         if (deleteId) {
@@ -93,19 +97,23 @@ export function ReleasesTable({
                                         {formatDate(release.createdAt)}
                                     </TableCell>
                                     <TableCell>
-                                        {release.macFile ? (
+                                        {artifactFor(release, "mac") ? (
                                             <div className="flex flex-col gap-0.5">
                                                 <span className="text-sm font-medium">
                                                     {formatNumber(
-                                                        release.macFile
-                                                            .downloadCount,
+                                                        artifactFor(
+                                                            release,
+                                                            "mac",
+                                                        )?.downloadCount ?? 0,
                                                     )}{" "}
                                                     downloads
                                                 </span>
                                                 <span className="text-muted-foreground text-xs">
                                                     {formatBytes(
-                                                        release.macFile
-                                                            .fileSize,
+                                                        artifactFor(
+                                                            release,
+                                                            "mac",
+                                                        )?.fileSize ?? 0,
                                                     )}
                                                 </span>
                                             </div>
@@ -119,19 +127,23 @@ export function ReleasesTable({
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        {release.windowsFile ? (
+                                        {artifactFor(release, "windows") ? (
                                             <div className="flex flex-col gap-0.5">
                                                 <span className="text-sm font-medium">
                                                     {formatNumber(
-                                                        release.windowsFile
-                                                            .downloadCount,
+                                                        artifactFor(
+                                                            release,
+                                                            "windows",
+                                                        )?.downloadCount ?? 0,
                                                     )}{" "}
                                                     downloads
                                                 </span>
                                                 <span className="text-muted-foreground text-xs">
                                                     {formatBytes(
-                                                        release.windowsFile
-                                                            .fileSize,
+                                                        artifactFor(
+                                                            release,
+                                                            "windows",
+                                                        )?.fileSize ?? 0,
                                                     )}
                                                 </span>
                                             </div>

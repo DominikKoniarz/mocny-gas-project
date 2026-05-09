@@ -10,7 +10,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import type { Platform, Release } from "@/lib/types";
+import type { Platform, Release, ReleaseFileKind } from "@/lib/types";
 import { cn, formatBytes } from "@/lib/utils";
 import { useRef, useState } from "react";
 
@@ -18,13 +18,18 @@ interface UploadDialogProps {
     release: Release | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onUpload: (id: string, platform: Platform, file: File) => Promise<void>;
+    onUpload: (
+        id: string,
+        platform: Platform,
+        kind: ReleaseFileKind,
+        file: File,
+    ) => Promise<void>;
 }
 
 interface FileUploadProps {
-    platform: Platform;
     label: string;
     accept: string;
+    helperText: string;
     currentFile?: { fileName: string; fileSize: number };
     file: File | null;
     onFileChange: (file: File | null) => void;
@@ -32,9 +37,9 @@ interface FileUploadProps {
 }
 
 function FileUpload({
-    platform,
     label,
     accept,
+    helperText,
     currentFile,
     file,
     onFileChange,
@@ -156,11 +161,7 @@ function FileUpload({
                             <line x1="12" x2="12" y1="3" y2="15" />
                         </svg>
                         <p className="text-muted-foreground text-sm">
-                            Drop{" "}
-                            {platform === "mac"
-                                ? ".dmg or .zip"
-                                : ".exe or .nupkg"}{" "}
-                            file here or click to browse
+                            {helperText}
                         </p>
                     </div>
                 )}
@@ -175,9 +176,83 @@ export function UploadDialog({
     onOpenChange,
     onUpload,
 }: UploadDialogProps) {
-    const [macFile, setMacFile] = useState<File | null>(null);
-    const [windowsFile, setWindowsFile] = useState<File | null>(null);
+    const [macFiles, setMacFiles] = useState<
+        Record<ReleaseFileKind, File | null>
+    >({
+        artifact: null,
+        blockmap: null,
+        metadata: null,
+    });
+    const [windowsFiles, setWindowsFiles] = useState<
+        Record<ReleaseFileKind, File | null>
+    >({
+        artifact: null,
+        blockmap: null,
+        metadata: null,
+    });
     const [isUploading, setIsUploading] = useState(false);
+
+    const requirements: Record<
+        Platform,
+        Array<{
+            kind: ReleaseFileKind;
+            label: string;
+            accept: string;
+            helperText: string;
+        }>
+    > = {
+        mac: [
+            {
+                kind: "artifact",
+                label: "Mac Update (.zip)",
+                accept: ".zip",
+                helperText:
+                    "Drop the .zip update file here or click to browse",
+            },
+            {
+                kind: "blockmap",
+                label: "Mac Blockmap (.zip.blockmap)",
+                accept: ".blockmap",
+                helperText:
+                    "Drop the .zip.blockmap file here or click to browse",
+            },
+            {
+                kind: "metadata",
+                label: "Mac Metadata (latest-mac.yml)",
+                accept: ".yml",
+                helperText:
+                    "Drop latest-mac.yml here or click to browse (upload last)",
+            },
+        ],
+        windows: [
+            {
+                kind: "artifact",
+                label: "Windows Update (.exe)",
+                accept: ".exe",
+                helperText:
+                    "Drop the .exe update file here or click to browse",
+            },
+            {
+                kind: "blockmap",
+                label: "Windows Blockmap (.exe.blockmap)",
+                accept: ".blockmap",
+                helperText:
+                    "Drop the .exe.blockmap file here or click to browse",
+            },
+            {
+                kind: "metadata",
+                label: "Windows Metadata (latest.yml)",
+                accept: ".yml",
+                helperText:
+                    "Drop latest.yml here or click to browse (upload last)",
+            },
+        ],
+    };
+
+    const currentFiles = (platform: Platform, kind: ReleaseFileKind) =>
+        release?.files.find(
+            (file) => file.platform === platform && file.kind === kind,
+        );
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -185,14 +260,32 @@ export function UploadDialog({
 
         setIsUploading(true);
         try {
-            if (macFile) {
-                await onUpload(release.id, "mac", macFile);
+            const uploadOrder: ReleaseFileKind[] = [
+                "artifact",
+                "blockmap",
+                "metadata",
+            ];
+
+            for (const kind of uploadOrder) {
+                const file = macFiles[kind];
+                if (file) {
+                    await onUpload(release.id, "mac", kind, file);
+                }
             }
-            if (windowsFile) {
-                await onUpload(release.id, "windows", windowsFile);
+
+            for (const kind of uploadOrder) {
+                const file = windowsFiles[kind];
+                if (file) {
+                    await onUpload(release.id, "windows", kind, file);
+                }
             }
-            setMacFile(null);
-            setWindowsFile(null);
+
+            setMacFiles({ artifact: null, blockmap: null, metadata: null });
+            setWindowsFiles({
+                artifact: null,
+                blockmap: null,
+                metadata: null,
+            });
             onOpenChange(false);
         } finally {
             setIsUploading(false);
@@ -201,8 +294,12 @@ export function UploadDialog({
 
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
-            setMacFile(null);
-            setWindowsFile(null);
+            setMacFiles({ artifact: null, blockmap: null, metadata: null });
+            setWindowsFiles({
+                artifact: null,
+                blockmap: null,
+                metadata: null,
+            });
         }
         onOpenChange(newOpen);
     };
@@ -219,24 +316,60 @@ export function UploadDialog({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
-                        <FileUpload
-                            platform="mac"
-                            label="Mac Installer"
-                            accept=".dmg,.zip"
-                            currentFile={release?.macFile}
-                            file={macFile}
-                            onFileChange={setMacFile}
-                            isUploading={isUploading}
-                        />
-                        <FileUpload
-                            platform="windows"
-                            label="Windows Installer"
-                            accept=".exe,.msi,.nupkg"
-                            currentFile={release?.windowsFile}
-                            file={windowsFile}
-                            onFileChange={setWindowsFile}
-                            isUploading={isUploading}
-                        />
+                        <div className="space-y-6">
+                            <div>
+                                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                                    Mac files
+                                </p>
+                            </div>
+                            {requirements.mac.map((requirement) => (
+                                <FileUpload
+                                    key={`mac-${requirement.kind}`}
+                                    label={requirement.label}
+                                    accept={requirement.accept}
+                                    helperText={requirement.helperText}
+                                    currentFile={currentFiles(
+                                        "mac",
+                                        requirement.kind,
+                                    )}
+                                    file={macFiles[requirement.kind]}
+                                    onFileChange={(file) =>
+                                        setMacFiles((prev) => ({
+                                            ...prev,
+                                            [requirement.kind]: file,
+                                        }))
+                                    }
+                                    isUploading={isUploading}
+                                />
+                            ))}
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+                                    Windows files
+                                </p>
+                            </div>
+                            {requirements.windows.map((requirement) => (
+                                <FileUpload
+                                    key={`windows-${requirement.kind}`}
+                                    label={requirement.label}
+                                    accept={requirement.accept}
+                                    helperText={requirement.helperText}
+                                    currentFile={currentFiles(
+                                        "windows",
+                                        requirement.kind,
+                                    )}
+                                    file={windowsFiles[requirement.kind]}
+                                    onFileChange={(file) =>
+                                        setWindowsFiles((prev) => ({
+                                            ...prev,
+                                            [requirement.kind]: file,
+                                        }))
+                                    }
+                                    isUploading={isUploading}
+                                />
+                            ))}
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button
@@ -249,7 +382,11 @@ export function UploadDialog({
                         </Button>
                         <Button
                             type="submit"
-                            disabled={isUploading || (!macFile && !windowsFile)}
+                            disabled={
+                                isUploading ||
+                                (!Object.values(macFiles).some(Boolean) &&
+                                    !Object.values(windowsFiles).some(Boolean))
+                            }
                         >
                             {isUploading ? "Uploading..." : "Upload Files"}
                         </Button>

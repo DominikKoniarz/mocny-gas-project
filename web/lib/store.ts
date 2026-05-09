@@ -8,7 +8,6 @@ import {
     updateLogs,
     type UpdateLogRow,
 } from "./db/schema";
-import { hasUsableSignatureMetadata } from "./signing";
 import type {
     CreateLogInput,
     CreateReleaseInput,
@@ -16,6 +15,7 @@ import type {
     Platform,
     Release,
     ReleaseFile,
+    ReleaseFileKind,
     UpdateLog,
     UpdateReleaseInput,
 } from "./types";
@@ -36,21 +36,19 @@ function toReleaseFile(row: ReleaseFileRow): ReleaseFile {
         signingKeyId: row.signingKeyId,
         downloadUrl: row.downloadUrl,
         downloadCount: row.downloadCount,
+        platform: row.platform,
+        kind: row.kind,
     };
 }
 
 function toRelease(row: ReleaseRow, files: ReleaseFileRow[] = []): Release {
-    const macFile = files.find((file) => file.platform === "mac");
-    const windowsFile = files.find((file) => file.platform === "windows");
-
     return {
         id: row.id,
         version: row.version,
         releaseNotes: row.releaseNotes,
         createdAt: row.createdAt,
         isEnabled: row.isEnabled,
-        macFile: macFile ? toReleaseFile(macFile) : undefined,
-        windowsFile: windowsFile ? toReleaseFile(windowsFile) : undefined,
+        files: files.map(toReleaseFile),
     };
 }
 
@@ -133,7 +131,7 @@ export const releasesStore = {
 
     getLatestEnabled: (
         platform?: Platform,
-        options?: { requireSigned?: boolean },
+        options?: { requireUpdateFiles?: boolean },
     ): Release | undefined => {
         const rows = db
             .select()
@@ -143,20 +141,12 @@ export const releasesStore = {
             .all();
         const hydrated = hydrateReleases(rows);
 
-        return hydrated.find(
-            (release) => {
-                if (!platform) return true;
+        return hydrated.find((release) => {
+            if (!platform) return true;
+            if (!options?.requireUpdateFiles) return true;
 
-                const file =
-                    platform === "mac" ? release.macFile : release.windowsFile;
-                if (!file) return false;
-
-                return (
-                    !options?.requireSigned ||
-                    hasUsableSignatureMetadata(file)
-                );
-            },
-        );
+            return hasRequiredUpdateFiles(release, platform);
+        });
     },
 
     create: (input: CreateReleaseInput): Release => {
@@ -196,6 +186,7 @@ export const releasesStore = {
     setFile: (
         id: string,
         platform: Platform,
+        kind: ReleaseFileKind,
         file: {
             fileName: string;
             fileSize: number;
@@ -217,6 +208,7 @@ export const releasesStore = {
                 and(
                     eq(releaseFiles.releaseId, id),
                     eq(releaseFiles.platform, platform),
+                    eq(releaseFiles.kind, kind),
                 ),
             )
             .run();
@@ -226,6 +218,7 @@ export const releasesStore = {
                 id: `file_${generateId()}`,
                 releaseId: id,
                 platform,
+                kind,
                 fileName: file.fileName,
                 fileSize: file.fileSize,
                 storagePath: file.storagePath,
@@ -246,6 +239,7 @@ export const releasesStore = {
     getFileRecord: (
         id: string,
         platform: Platform,
+        kind: ReleaseFileKind,
     ): ReleaseFileRow | undefined => {
         return db
             .select()
@@ -254,12 +248,17 @@ export const releasesStore = {
                 and(
                     eq(releaseFiles.releaseId, id),
                     eq(releaseFiles.platform, platform),
+                    eq(releaseFiles.kind, kind),
                 ),
             )
             .get();
     },
 
-    incrementDownload: (id: string, platform: Platform): boolean => {
+    incrementDownload: (
+        id: string,
+        platform: Platform,
+        kind: ReleaseFileKind,
+    ): boolean => {
         const result = db
             .update(releaseFiles)
             .set({ downloadCount: sql`${releaseFiles.downloadCount} + 1` })
@@ -267,6 +266,7 @@ export const releasesStore = {
                 and(
                     eq(releaseFiles.releaseId, id),
                     eq(releaseFiles.platform, platform),
+                    eq(releaseFiles.kind, kind),
                 ),
             )
             .run();
@@ -287,18 +287,40 @@ export const releasesStore = {
             totalReleases,
             activeReleases,
             totalDownloads: files.reduce(
-                (sum, file) => sum + file.downloadCount,
+                (sum, file) =>
+                    file.kind === "artifact" ? sum + file.downloadCount : sum,
                 0,
             ),
             macDownloads: files
-                .filter((file) => file.platform === "mac")
+                .filter(
+                    (file) => file.platform === "mac" && file.kind === "artifact",
+                )
                 .reduce((sum, file) => sum + file.downloadCount, 0),
             windowsDownloads: files
-                .filter((file) => file.platform === "windows")
+                .filter(
+                    (file) =>
+                        file.platform === "windows" && file.kind === "artifact",
+                )
                 .reduce((sum, file) => sum + file.downloadCount, 0),
         };
     },
 };
+
+const requiredKindsByPlatform: Record<Platform, ReleaseFileKind[]> = {
+    mac: ["metadata", "artifact", "blockmap"],
+    windows: ["metadata", "artifact", "blockmap"],
+};
+
+function hasRequiredUpdateFiles(
+    release: Release,
+    platform: Platform,
+): boolean {
+    return requiredKindsByPlatform[platform].every((kind) =>
+        release.files.some(
+            (file) => file.platform === platform && file.kind === kind,
+        ),
+    );
+}
 
 export const logsStore = {
     getAll: (filters?: LogFilters): UpdateLog[] => {

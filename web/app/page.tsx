@@ -12,6 +12,7 @@ import type {
     CreateReleaseInput,
     Platform,
     Release,
+    ReleaseFileKind,
     UpdateReleaseInput,
 } from "@/lib/types";
 import { useCallback, useState } from "react";
@@ -84,10 +85,16 @@ export default function ReleasesPage() {
     }, []);
 
     const handleUploadFile = useCallback(
-        async (id: string, platform: Platform, file: File) => {
+        async (
+            id: string,
+            platform: Platform,
+            kind: ReleaseFileKind,
+            file: File,
+        ) => {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("platform", platform);
+            formData.append("kind", kind);
 
             await fetch(`/api/admin/releases/${id}/upload`, {
                 method: "POST",

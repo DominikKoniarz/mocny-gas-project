@@ -2,7 +2,6 @@ import {
     latestReleaseQuerySchema,
     validationError,
 } from "@/lib/api/validation";
-import { hasUsableSignatureMetadata } from "@/lib/signing";
 import { releasesStore } from "@/lib/store";
 import { NextResponse } from "next/server";
 
@@ -20,9 +19,7 @@ export async function GET(request: Request) {
     }
 
     const { platform } = parsedQuery.data;
-    const release = releasesStore.getLatestEnabled(platform, {
-        requireSigned: true,
-    });
+    const release = releasesStore.getLatestEnabled(platform);
 
     if (!release) {
         return NextResponse.json(
@@ -31,11 +28,13 @@ export async function GET(request: Request) {
         );
     }
 
-    const file = platform === "mac" ? release.macFile : release.windowsFile;
+    const file = release.files.find(
+        (entry) => entry.platform === platform && entry.kind === "artifact",
+    );
 
-    if (!file || !hasUsableSignatureMetadata(file)) {
+    if (!file) {
         return NextResponse.json(
-            { error: `No signed ${platform} file available` },
+            { error: `No ${platform} file available` },
             { status: 404 },
         );
     }

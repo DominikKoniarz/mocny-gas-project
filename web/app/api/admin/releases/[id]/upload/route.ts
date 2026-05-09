@@ -3,35 +3,141 @@ import {
     uploadFormSchema,
     validationError,
 } from "@/lib/api/validation";
-import {
-    SigningConfigurationError,
-    signReleasePayload,
-} from "@/lib/signing";
 import { releasesStore } from "@/lib/store";
-import type { Platform } from "@/lib/types";
-import { createHash, randomUUID } from "crypto";
+import type { Platform, ReleaseFileKind } from "@/lib/types";
+import { createHash } from "crypto";
+import { createReadStream } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import { NextResponse } from "next/server";
 import path from "path";
+import { pipeline } from "stream/promises";
+import { parse as parseYaml } from "yaml";
 
-const validExtensionsByPlatform: Record<Platform, string[]> = {
-    mac: [".dmg", ".zip"],
-    windows: [".exe", ".msi", ".nupkg"],
+const metadataFileNameByPlatform: Record<Platform, string> = {
+    mac: "latest-mac.yml",
+    windows: "latest.yml",
+};
+
+const requiredExtensions: Record<Platform, Record<ReleaseFileKind, string[]>> = {
+    mac: {
+        metadata: [".yml"],
+        artifact: [".zip"],
+        blockmap: [".zip.blockmap"],
+    },
+    windows: {
+        metadata: [".yml"],
+        artifact: [".exe"],
+        blockmap: [".exe.blockmap"],
+    },
 };
 
 const contentTypesByExtension: Record<string, string> = {
+    ".blockmap": "application/octet-stream",
     ".dmg": "application/x-apple-diskimage",
     ".exe": "application/vnd.microsoft.portable-executable",
     ".msi": "application/x-msi",
     ".nupkg": "application/zip",
+    ".yml": "text/yaml",
     ".zip": "application/zip",
 };
 
-function sanitizeFileName(fileName: string): string {
-    return path
-        .basename(fileName)
-        .replace(/[^a-zA-Z0-9._-]/g, "-")
-        .replace(/-+/g, "-");
+function isSafeFileName(fileName: string): boolean {
+    return (
+        fileName === path.basename(fileName) &&
+        !fileName.includes("..") &&
+        !fileName.includes("/") &&
+        !fileName.includes("\\")
+    );
+}
+
+function matchesExtension(fileName: string, extensions: string[]): boolean {
+    const lower = fileName.toLowerCase();
+    return extensions.some((ext) => lower.endsWith(ext));
+}
+
+async function hashFile(
+    filePath: string,
+    algorithm: "sha256" | "sha512",
+): Promise<string> {
+    const hash = createHash(algorithm);
+    await pipeline(createReadStream(filePath), hash);
+    return hash.digest(algorithm === "sha512" ? "base64" : "hex");
+}
+
+type ParsedUpdateMetadata = {
+    version?: string;
+    artifactName: string;
+    artifactSha512?: string;
+    blockmapName: string;
+    blockmapSha512?: string;
+};
+
+function parseUpdateMetadata(
+    payload: string,
+    platform: Platform,
+): ParsedUpdateMetadata {
+    const data = parseYaml(payload);
+    if (!data || typeof data !== "object") {
+        throw new Error("Update metadata must be a YAML object");
+    }
+
+    const record = data as Record<string, unknown>;
+    const version = typeof record.version === "string" ? record.version : undefined;
+    const pathValue = typeof record.path === "string" ? record.path : undefined;
+    const files = Array.isArray(record.files) ? record.files : [];
+
+    const fileEntries = files.filter(
+        (entry) =>
+            entry &&
+            typeof entry === "object" &&
+            typeof (entry as { url?: string }).url === "string",
+    ) as Array<{ url: string; sha512?: string }>;
+
+    const fileUrls = fileEntries.map((entry) => entry.url);
+    fileUrls.forEach((url) => {
+        if (!isSafeFileName(url)) {
+            throw new Error("Update metadata contains invalid file paths");
+        }
+    });
+
+    const artifactName =
+        pathValue ||
+        fileUrls.find((url) => !url.toLowerCase().endsWith(".blockmap"));
+    const blockmapName = fileUrls.find((url) =>
+        url.toLowerCase().endsWith(".blockmap"),
+    );
+
+    if (!artifactName || !blockmapName) {
+        throw new Error("Update metadata is missing required file references");
+    }
+
+    if (!isSafeFileName(artifactName) || !isSafeFileName(blockmapName)) {
+        throw new Error("Update metadata contains invalid file paths");
+    }
+
+    if (!matchesExtension(artifactName, requiredExtensions[platform].artifact)) {
+        throw new Error("Update metadata points to the wrong artifact type");
+    }
+
+    if (!matchesExtension(blockmapName, requiredExtensions[platform].blockmap)) {
+        throw new Error("Update metadata points to the wrong blockmap type");
+    }
+
+    const artifactEntry = fileEntries.find((entry) => entry.url === artifactName);
+    const blockmapEntry = fileEntries.find((entry) => entry.url === blockmapName);
+
+    const artifactSha512 =
+        artifactEntry?.sha512 ||
+        (typeof record.sha512 === "string" ? record.sha512 : undefined);
+    const blockmapSha512 = blockmapEntry?.sha512;
+
+    return {
+        version,
+        artifactName,
+        artifactSha512,
+        blockmapName,
+        blockmapSha512,
+    };
 }
 
 export async function POST(
@@ -60,6 +166,7 @@ export async function POST(
     const parsedForm = uploadFormSchema.safeParse({
         file: formData.get("file"),
         platform: formData.get("platform"),
+        kind: formData.get("kind"),
     });
     if (!parsedForm.success) {
         return NextResponse.json(
@@ -68,73 +175,168 @@ export async function POST(
         );
     }
 
-    const { file, platform } = parsedForm.data;
+    const { file, platform, kind } = parsedForm.data;
+    const fileName = file.name;
 
-    const fileName = sanitizeFileName(file.name);
-    const extension = path.extname(fileName).toLowerCase();
-    const validExtensions = validExtensionsByPlatform[platform];
+    if (!isSafeFileName(fileName)) {
+        return NextResponse.json(
+            { error: "Invalid file name" },
+            { status: 400 },
+        );
+    }
 
-    if (!validExtensions.includes(extension)) {
+    const expectedMetadataName = metadataFileNameByPlatform[platform];
+    if (kind === "metadata" && fileName !== expectedMetadataName) {
         return NextResponse.json(
             {
-                error: `Invalid file type. Expected: ${validExtensions.join(", ")}`,
+                error: `Metadata file must be named ${expectedMetadataName}`,
             },
             { status: 400 },
         );
+    }
+
+    if (!matchesExtension(fileName, requiredExtensions[platform][kind])) {
+        return NextResponse.json(
+            {
+                error: `Invalid file type. Expected: ${requiredExtensions[platform][kind].join(", ")}`,
+            },
+            { status: 400 },
+        );
+    }
+
+    if (kind === "blockmap") {
+        const artifact = releasesStore.getFileRecord(id, platform, "artifact");
+        if (!artifact) {
+            return NextResponse.json(
+                { error: "Upload the artifact file before the blockmap." },
+                { status: 400 },
+            );
+        }
+
+        if (`${artifact.fileName}.blockmap` !== fileName) {
+            return NextResponse.json(
+                { error: "Blockmap file name must match the artifact file." },
+                { status: 400 },
+            );
+        }
+    }
+
+    if (kind === "metadata") {
+        const artifact = releasesStore.getFileRecord(id, platform, "artifact");
+        const blockmap = releasesStore.getFileRecord(id, platform, "blockmap");
+
+        if (!artifact || !blockmap) {
+            return NextResponse.json(
+                { error: "Upload the artifact and blockmap before metadata." },
+                { status: 400 },
+            );
+        }
+
+        const text = await file.text();
+        let parsedMetadata: ParsedUpdateMetadata;
+        try {
+            parsedMetadata = parseUpdateMetadata(text, platform);
+        } catch (error) {
+            return NextResponse.json(
+                {
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Invalid update metadata file",
+                },
+                { status: 400 },
+            );
+        }
+
+        if (parsedMetadata.version && parsedMetadata.version !== release.version) {
+            return NextResponse.json(
+                {
+                    error: "Metadata version does not match the release version",
+                },
+                { status: 400 },
+            );
+        }
+
+        if (
+            parsedMetadata.artifactName !== artifact.fileName ||
+            parsedMetadata.blockmapName !== blockmap.fileName
+        ) {
+            return NextResponse.json(
+                {
+                    error:
+                        "Metadata file names must match the uploaded artifact and blockmap",
+                },
+                { status: 400 },
+            );
+        }
+
+        if (!parsedMetadata.artifactSha512 || !parsedMetadata.blockmapSha512) {
+            return NextResponse.json(
+                { error: "Metadata must include sha512 checksums." },
+                { status: 400 },
+            );
+        }
+
+        const storageRoot = path.join(process.cwd(), "storage", "releases");
+        const artifactPath = path.join(storageRoot, artifact.storagePath);
+        const blockmapPath = path.join(storageRoot, blockmap.storagePath);
+
+        let artifactSha512: string;
+        let blockmapSha512: string;
+        try {
+            [artifactSha512, blockmapSha512] = await Promise.all([
+                hashFile(artifactPath, "sha512"),
+                hashFile(blockmapPath, "sha512"),
+            ]);
+        } catch {
+            return NextResponse.json(
+                { error: "Failed to verify checksum for stored files." },
+                { status: 400 },
+            );
+        }
+
+        if (artifactSha512 !== parsedMetadata.artifactSha512) {
+            return NextResponse.json(
+                { error: "Artifact checksum does not match metadata." },
+                { status: 400 },
+            );
+        }
+
+        if (blockmapSha512 !== parsedMetadata.blockmapSha512) {
+            return NextResponse.json(
+                { error: "Blockmap checksum does not match metadata." },
+                { status: 400 },
+            );
+        }
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const sha256 = createHash("sha256").update(buffer).digest("hex");
     const contentType =
-        contentTypesByExtension[extension] ||
+        contentTypesByExtension[path.extname(fileName).toLowerCase()] ||
         file.type ||
         "application/octet-stream";
-    let signature;
-
-    try {
-        signature = signReleasePayload({
-            releaseId: release.id,
-            version: release.version,
-            platform,
-            fileName,
-            fileSize: file.size,
-            sha256,
-        });
-    } catch (error) {
-        if (error instanceof SigningConfigurationError) {
-            return NextResponse.json(
-                { error: error.message },
-                { status: 503 },
-            );
-        }
-
-        return NextResponse.json(
-            { error: "Failed to sign release artifact" },
-            { status: 500 },
-        );
-    }
 
     const storageRoot = path.join(process.cwd(), "storage", "releases");
     const storageDir = path.join(storageRoot, release.id);
-    const storedFileName = `${platform}-${randomUUID()}${extension}`;
-    const storagePath = path.join(release.id, storedFileName);
-    const filePath = path.join(storageDir, storedFileName);
+    const storagePath = path.join(release.id, fileName);
+    const filePath = path.join(storageDir, fileName);
 
     await mkdir(storageDir, { recursive: true });
     await writeFile(filePath, buffer);
 
-    const downloadUrl = `/api/releases/download/${release.id}?platform=${platform}`;
-    releasesStore.setFile(id, platform, {
+    const downloadUrl = `/api/updates/${platform}/${encodeURIComponent(fileName)}`;
+    releasesStore.setFile(id, platform, kind, {
         fileName,
         fileSize: file.size,
         storagePath,
         contentType,
         sha256,
-        signature: signature.signature,
-        signatureAlgorithm: signature.signatureAlgorithm,
-        signedAt: signature.signedAt,
-        signingKeyId: signature.signingKeyId,
+        signature: null,
+        signatureAlgorithm: null,
+        signedAt: null,
+        signingKeyId: null,
         downloadUrl,
     });
 
@@ -144,10 +346,8 @@ export async function POST(
         fileSize: file.size,
         contentType,
         sha256,
-        signature: signature.signature,
-        signatureAlgorithm: signature.signatureAlgorithm,
-        signedAt: signature.signedAt,
-        signingKeyId: signature.signingKeyId,
+        kind,
+        platform,
         downloadUrl,
     });
 }

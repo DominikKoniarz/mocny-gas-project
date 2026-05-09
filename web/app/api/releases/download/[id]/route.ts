@@ -3,7 +3,6 @@ import {
     releaseIdParamsSchema,
     validationError,
 } from "@/lib/api/validation";
-import { SIGNATURE_ALGORITHM } from "@/lib/signing";
 import { releasesStore } from "@/lib/store";
 import { createReadStream } from "fs";
 import { stat } from "fs/promises";
@@ -53,24 +52,12 @@ export async function GET(
         );
     }
 
-    const file = releasesStore.getFileRecord(id, platform);
+    const file = releasesStore.getFileRecord(id, platform, "artifact");
 
     if (!file) {
         return NextResponse.json(
             { error: `No ${platform} file available for this release` },
             { status: 404 },
-        );
-    }
-
-    if (
-        !file.sha256 ||
-        !file.signature ||
-        file.signatureAlgorithm !== SIGNATURE_ALGORITHM ||
-        !file.signedAt
-    ) {
-        return NextResponse.json(
-            { error: "Release artifact is unsigned" },
-            { status: 403 },
         );
     }
 
@@ -91,7 +78,7 @@ export async function GET(
         );
     }
 
-    releasesStore.incrementDownload(id, platform);
+    releasesStore.incrementDownload(id, platform, "artifact");
 
     const stream = createReadStream(filePath);
 
@@ -100,10 +87,6 @@ export async function GET(
             "Content-Type": file.contentType,
             "Content-Length": fileStat.size.toString(),
             "Content-Disposition": `attachment; filename="${file.fileName.replace(/"/g, "")}"`,
-            "X-Artifact-SHA256": file.sha256,
-            "X-Artifact-Signature": file.signature,
-            "X-Artifact-Signature-Algorithm": file.signatureAlgorithm,
-            "X-Artifact-Signed-At": file.signedAt.toISOString(),
             "X-Release-Version": release.version,
             "X-Release-Platform": platform,
         },
