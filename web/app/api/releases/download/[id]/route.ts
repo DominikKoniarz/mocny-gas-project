@@ -1,6 +1,10 @@
 import { releasesStore } from "@/lib/store";
 import type { Platform } from "@/lib/types";
+import { createReadStream } from "fs";
+import { stat } from "fs/promises";
 import { NextResponse } from "next/server";
+import path from "path";
+import { Readable } from "stream";
 
 export async function GET(
     request: Request,
@@ -33,7 +37,7 @@ export async function GET(
         );
     }
 
-    const file = platform === "mac" ? release.macFile : release.windowsFile;
+    const file = releasesStore.getFileRecord(id, platform);
 
     if (!file) {
         return NextResponse.json(
@@ -42,15 +46,35 @@ export async function GET(
         );
     }
 
-    // Increment download count
+    const storageRoot = path.resolve(process.cwd(), "storage", "releases");
+    const filePath = path.resolve(storageRoot, file.storagePath);
+
+    if (!filePath.startsWith(`${storageRoot}${path.sep}`)) {
+        return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
+    }
+
+    let fileStat;
+    try {
+        fileStat = await stat(filePath);
+    } catch {
+        return NextResponse.json(
+            { error: "Artifact file not found" },
+            { status: 404 },
+        );
+    }
+
     releasesStore.incrementDownload(id, platform);
 
-    // Return download URL for client to fetch
-    return NextResponse.json({
-        version: release.version,
-        platform,
-        fileName: file.fileName,
-        fileSize: file.fileSize,
-        downloadUrl: file.downloadUrl,
+    const stream = createReadStream(filePath);
+
+    return new NextResponse(Readable.toWeb(stream) as ReadableStream, {
+        headers: {
+            "Content-Type": file.contentType,
+            "Content-Length": fileStat.size.toString(),
+            "Content-Disposition": `attachment; filename="${file.fileName.replace(/"/g, "")}"`,
+            "X-Artifact-SHA256": file.sha256,
+            "X-Release-Version": release.version,
+            "X-Release-Platform": platform,
+        },
     });
 }

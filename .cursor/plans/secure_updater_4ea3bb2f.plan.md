@@ -7,7 +7,7 @@ todos:
       status: completed
     - id: artifact-storage
       content: Move uploads to gitignored storage and compute file metadata.
-      status: pending
+      status: completed
     - id: signing-contract
       content: Add signed release metadata and Zod-validated public/admin APIs.
       status: pending

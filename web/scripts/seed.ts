@@ -251,6 +251,19 @@ const seedLogs = [
     },
 ];
 
+const contentTypesByExtension: Record<string, string> = {
+    dmg: "application/x-apple-diskimage",
+    exe: "application/vnd.microsoft.portable-executable",
+    msi: "application/x-msi",
+    nupkg: "application/zip",
+    zip: "application/zip",
+};
+
+function contentTypeFor(fileName: string): string {
+    const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+    return contentTypesByExtension[extension] ?? "application/octet-stream";
+}
+
 db.transaction(() => {
     db.delete(updateLogs).run();
     db.delete(releaseFiles).run();
@@ -272,6 +285,14 @@ db.transaction(() => {
                 .values({
                     ...file,
                     releaseId: release.id,
+                    storagePath: `${release.id}/${file.platform}-${file.fileName}`,
+                    contentType: contentTypeFor(file.fileName),
+                    sha256: "",
+                    signature: null,
+                    signatureAlgorithm: null,
+                    signedAt: null,
+                    signingKeyId: null,
+                    downloadUrl: `/api/releases/download/${release.id}?platform=${file.platform}`,
                 })
                 .run();
         }

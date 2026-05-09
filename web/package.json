@@ -10,6 +10,7 @@
         "db:push": "drizzle-kit push",
         "db:seed": "tsx scripts/seed.ts",
         "db:setup": "pnpm db:migrate && pnpm db:seed",
+        "db:studio": "drizzle-kit studio",
         "dev": "next dev --turbopack",
         "format": "prettier --write \"**/*.{ts,tsx}\"",
         "lint": "eslint",

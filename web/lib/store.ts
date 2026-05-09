@@ -27,6 +27,12 @@ function toReleaseFile(row: ReleaseFileRow): ReleaseFile {
     return {
         fileName: row.fileName,
         fileSize: row.fileSize,
+        contentType: row.contentType,
+        sha256: row.sha256,
+        signature: row.signature,
+        signatureAlgorithm: row.signatureAlgorithm,
+        signedAt: row.signedAt,
+        signingKeyId: row.signingKeyId,
         downloadUrl: row.downloadUrl,
         downloadCount: row.downloadCount,
     };
@@ -177,7 +183,18 @@ export const releasesStore = {
     setFile: (
         id: string,
         platform: Platform,
-        file: { fileName: string; fileSize: number; downloadUrl: string },
+        file: {
+            fileName: string;
+            fileSize: number;
+            storagePath: string;
+            contentType: string;
+            sha256: string;
+            signature: string | null;
+            signatureAlgorithm: string | null;
+            signedAt: Date | null;
+            signingKeyId: string | null;
+            downloadUrl: string;
+        },
     ): Release | undefined => {
         const release = releasesStore.getById(id);
         if (!release) return undefined;
@@ -198,12 +215,35 @@ export const releasesStore = {
                 platform,
                 fileName: file.fileName,
                 fileSize: file.fileSize,
+                storagePath: file.storagePath,
+                contentType: file.contentType,
+                sha256: file.sha256,
+                signature: file.signature,
+                signatureAlgorithm: file.signatureAlgorithm,
+                signedAt: file.signedAt,
+                signingKeyId: file.signingKeyId,
                 downloadUrl: file.downloadUrl,
                 downloadCount: 0,
             })
             .run();
 
         return releasesStore.getById(id);
+    },
+
+    getFileRecord: (
+        id: string,
+        platform: Platform,
+    ): ReleaseFileRow | undefined => {
+        return db
+            .select()
+            .from(releaseFiles)
+            .where(
+                and(
+                    eq(releaseFiles.releaseId, id),
+                    eq(releaseFiles.platform, platform),
+                ),
+            )
+            .get();
     },
 
     incrementDownload: (id: string, platform: Platform): boolean => {

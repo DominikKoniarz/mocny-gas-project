@@ -1,8 +1,29 @@
 import { releasesStore } from "@/lib/store";
 import type { Platform } from "@/lib/types";
+import { createHash, randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import { NextResponse } from "next/server";
 import path from "path";
+
+const validExtensionsByPlatform: Record<Platform, string[]> = {
+    mac: [".dmg", ".zip"],
+    windows: [".exe", ".msi", ".nupkg"],
+};
+
+const contentTypesByExtension: Record<string, string> = {
+    ".dmg": "application/x-apple-diskimage",
+    ".exe": "application/vnd.microsoft.portable-executable",
+    ".msi": "application/x-msi",
+    ".nupkg": "application/zip",
+    ".zip": "application/zip",
+};
+
+function sanitizeFileName(fileName: string): string {
+    return path
+        .basename(fileName)
+        .replace(/[^a-zA-Z0-9._-]/g, "-")
+        .replace(/-+/g, "-");
+}
 
 export async function POST(
     request: Request,
@@ -36,16 +57,11 @@ export async function POST(
         );
     }
 
-    // Validate file extension
-    const fileName = file.name;
-    const validExtensions =
-        platform === "mac" ? [".dmg", ".zip"] : [".exe", ".msi", ".nupkg"];
+    const fileName = sanitizeFileName(file.name);
+    const extension = path.extname(fileName).toLowerCase();
+    const validExtensions = validExtensionsByPlatform[platform];
 
-    const hasValidExtension = validExtensions.some((ext) =>
-        fileName.toLowerCase().endsWith(ext),
-    );
-
-    if (!hasValidExtension) {
+    if (!validExtensions.includes(extension)) {
         return NextResponse.json(
             {
                 error: `Invalid file type. Expected: ${validExtensions.join(", ")}`,
@@ -54,25 +70,34 @@ export async function POST(
         );
     }
 
-    // Create upload directory
-    const uploadDir = path.join(
-        process.cwd(),
-        "public",
-        "uploads",
-        release.version,
-    );
-    await mkdir(uploadDir, { recursive: true });
-
-    // Write file to disk
-    const filePath = path.join(uploadDir, fileName);
     const bytes = await file.arrayBuffer();
-    await writeFile(filePath, Buffer.from(bytes));
+    const buffer = Buffer.from(bytes);
+    const sha256 = createHash("sha256").update(buffer).digest("hex");
+    const contentType =
+        contentTypesByExtension[extension] ||
+        file.type ||
+        "application/octet-stream";
 
-    // Update release with file info
-    const downloadUrl = `/uploads/${release.version}/${fileName}`;
+    const storageRoot = path.join(process.cwd(), "storage", "releases");
+    const storageDir = path.join(storageRoot, release.id);
+    const storedFileName = `${platform}-${randomUUID()}${extension}`;
+    const storagePath = path.join(release.id, storedFileName);
+    const filePath = path.join(storageDir, storedFileName);
+
+    await mkdir(storageDir, { recursive: true });
+    await writeFile(filePath, buffer);
+
+    const downloadUrl = `/api/releases/download/${release.id}?platform=${platform}`;
     releasesStore.setFile(id, platform, {
         fileName,
         fileSize: file.size,
+        storagePath,
+        contentType,
+        sha256,
+        signature: null,
+        signatureAlgorithm: null,
+        signedAt: null,
+        signingKeyId: null,
         downloadUrl,
     });
 
@@ -80,6 +105,8 @@ export async function POST(
         success: true,
         fileName,
         fileSize: file.size,
+        contentType,
+        sha256,
         downloadUrl,
     });
 }

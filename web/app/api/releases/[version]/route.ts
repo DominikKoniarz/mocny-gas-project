@@ -42,6 +42,12 @@ export async function GET(
             ? {
                   fileName: file.fileName,
                   fileSize: file.fileSize,
+                  contentType: file.contentType,
+                  sha256: file.sha256,
+                  signature: file.signature,
+                  signatureAlgorithm: file.signatureAlgorithm,
+                  signedAt: file.signedAt,
+                  signingKeyId: file.signingKeyId,
                   downloadUrl: file.downloadUrl,
               }
             : null,

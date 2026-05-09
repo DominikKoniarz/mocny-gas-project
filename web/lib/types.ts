@@ -1,6 +1,12 @@
 export interface ReleaseFile {
     fileName: string;
     fileSize: number;
+    contentType: string;
+    sha256: string;
+    signature: string | null;
+    signatureAlgorithm: string | null;
+    signedAt: Date | null;
+    signingKeyId: string | null;
     downloadUrl: string;
     downloadCount: number;
 }

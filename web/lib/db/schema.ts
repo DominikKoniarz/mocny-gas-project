@@ -16,6 +16,13 @@ export const releaseFiles = sqliteTable("release_files", {
     platform: text("platform", { enum: ["mac", "windows"] }).notNull(),
     fileName: text("file_name").notNull(),
     fileSize: integer("file_size").notNull(),
+    storagePath: text("storage_path").notNull(),
+    contentType: text("content_type").notNull(),
+    sha256: text("sha256").notNull(),
+    signature: text("signature"),
+    signatureAlgorithm: text("signature_algorithm"),
+    signedAt: integer("signed_at", { mode: "timestamp" }),
+    signingKeyId: text("signing_key_id"),
     downloadUrl: text("download_url").notNull(),
     downloadCount: integer("download_count").notNull().default(0),
 });
