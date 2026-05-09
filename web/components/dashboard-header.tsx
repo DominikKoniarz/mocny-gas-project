@@ -13,10 +13,10 @@ export function DashboardHeader() {
     const pathname = usePathname();
 
     return (
-        <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 border-b backdrop-blur">
-            <div className="container flex h-14 items-center gap-8">
+        <header className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-50 border-b backdrop-blur">
+            <div className="container mx-auto flex h-14 items-center gap-8 px-4 sm:px-6 lg:px-8">
                 <Link href="/" className="flex items-center gap-2">
-                    <div className="bg-primary flex h-8 w-8 items-center justify-center rounded-lg">
+                    <div className="bg-primary xs:flex hidden h-8 w-8 items-center justify-center rounded-lg">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 24 24"
@@ -40,7 +40,7 @@ export function DashboardHeader() {
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                "hover:bg-accent hover:text-accent-foreground rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                "hover:bg-accent hover:text-accent-foreground xs:px-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
                                 pathname === item.href
                                     ? "bg-accent text-accent-foreground"
                                     : "text-muted-foreground",

@@ -118,34 +118,36 @@ export default function ReleasesPage() {
     return (
         <div className="bg-background min-h-screen">
             <DashboardHeader />
-            <main className="container py-6">
+            <main className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
                 <div className="flex flex-col gap-6">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">
-                                Releases
-                            </h1>
-                            <p className="text-muted-foreground">
-                                Manage your Electron app releases for Mac and
-                                Windows
-                            </p>
+                        <div className="flex w-full items-center justify-between gap-6">
+                            <div>
+                                <h1 className="text-3xl font-bold tracking-tight">
+                                    Releases
+                                </h1>
+                                <p className="text-muted-foreground">
+                                    Manage your Electron app releases for Mac
+                                    and Windows
+                                </p>
+                            </div>
+                            <Button onClick={() => setAddDialogOpen(true)}>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="mr-2 h-4 w-4"
+                                >
+                                    <path d="M5 12h14" />
+                                    <path d="M12 5v14" />
+                                </svg>
+                                Add Release
+                            </Button>
                         </div>
-                        <Button onClick={() => setAddDialogOpen(true)}>
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="mr-2 h-4 w-4"
-                            >
-                                <path d="M5 12h14" />
-                                <path d="M12 5v14" />
-                            </svg>
-                            Add Release
-                        </Button>
                     </div>
 
                     {statsLoading ? (

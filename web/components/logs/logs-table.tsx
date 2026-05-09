@@ -3,11 +3,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
     Table,
     TableBody,
     TableCell,
@@ -96,27 +91,59 @@ function LogRow({ log }: { log: UpdateLog }) {
     const hasError = log.status === "failed" && log.errorMessage;
 
     return (
-        <Collapsible open={isOpen} onOpenChange={setIsOpen} asChild>
-            <>
-                <TableRow className={hasError ? "border-b-0" : ""}>
-                    <TableCell className="text-muted-foreground">
-                        <div className="flex flex-col">
-                            <span className="text-sm">
-                                {formatRelativeTime(log.timestamp)}
-                            </span>
-                            <span className="text-muted-foreground/70 text-xs">
-                                {formatDateTime(log.timestamp)}
-                            </span>
-                        </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                        {log.clientId.slice(0, 16)}...
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground font-mono text-sm">
-                                {log.fromVersion || "New"}
-                            </span>
+        <>
+            <TableRow className={hasError && isOpen ? "border-b-0" : ""}>
+                <TableCell className="text-muted-foreground">
+                    <div className="flex flex-col">
+                        <span className="text-sm">
+                            {formatRelativeTime(log.timestamp)}
+                        </span>
+                        <span className="text-muted-foreground/70 text-xs">
+                            {formatDateTime(log.timestamp)}
+                        </span>
+                    </div>
+                </TableCell>
+                <TableCell className="font-mono text-sm">
+                    {log.clientId.slice(0, 16)}...
+                </TableCell>
+                <TableCell>
+                    <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground font-mono text-sm">
+                            {log.fromVersion || "New"}
+                        </span>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-muted-foreground h-4 w-4"
+                        >
+                            <path d="M5 12h14" />
+                            <path d="m12 5 7 7-7 7" />
+                        </svg>
+                        <span className="font-mono text-sm font-medium">
+                            {log.toVersion}
+                        </span>
+                    </div>
+                </TableCell>
+                <TableCell>
+                    <div className="flex items-center gap-2">
+                        {getPlatformIcon(log.platform)}
+                        <span className="capitalize">{log.platform}</span>
+                    </div>
+                </TableCell>
+                <TableCell>{getStatusBadge(log.status)}</TableCell>
+                <TableCell>
+                    {hasError && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-expanded={isOpen}
+                            onClick={() => setIsOpen((open) => !open)}
+                        >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24"
@@ -125,70 +152,37 @@ function LogRow({ log }: { log: UpdateLog }) {
                                 strokeWidth="2"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                className="text-muted-foreground h-4 w-4"
+                                className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
                             >
-                                <path d="M5 12h14" />
-                                <path d="m12 5 7 7-7 7" />
+                                <path d="m6 9 6 6 6-6" />
                             </svg>
-                            <span className="font-mono text-sm font-medium">
-                                {log.toVersion}
+                            <span className="sr-only">
+                                Toggle error details
                             </span>
+                        </Button>
+                    )}
+                </TableCell>
+            </TableRow>
+            {hasError && isOpen && (
+                <TableRow className="bg-red-500/5">
+                    <TableCell colSpan={6} className="py-3">
+                        <div className="rounded-md bg-red-500/10 p-3">
+                            <p className="text-sm font-medium text-red-600">
+                                Error Details
+                            </p>
+                            <p className="mt-1 text-sm text-red-600/80">
+                                {log.errorMessage}
+                            </p>
+                            {log.userAgent && (
+                                <p className="text-muted-foreground mt-2 text-xs">
+                                    User Agent: {log.userAgent}
+                                </p>
+                            )}
                         </div>
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex items-center gap-2">
-                            {getPlatformIcon(log.platform)}
-                            <span className="capitalize">{log.platform}</span>
-                        </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(log.status)}</TableCell>
-                    <TableCell>
-                        {hasError && (
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                                    >
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                    <span className="sr-only">
-                                        Toggle error details
-                                    </span>
-                                </Button>
-                            </CollapsibleTrigger>
-                        )}
                     </TableCell>
                 </TableRow>
-                {hasError && (
-                    <CollapsibleContent asChild>
-                        <TableRow className="bg-red-500/5">
-                            <TableCell colSpan={6} className="py-3">
-                                <div className="rounded-md bg-red-500/10 p-3">
-                                    <p className="text-sm font-medium text-red-600">
-                                        Error Details
-                                    </p>
-                                    <p className="mt-1 text-sm text-red-600/80">
-                                        {log.errorMessage}
-                                    </p>
-                                    {log.userAgent && (
-                                        <p className="text-muted-foreground mt-2 text-xs">
-                                            User Agent: {log.userAgent}
-                                        </p>
-                                    )}
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    </CollapsibleContent>
-                )}
-            </>
-        </Collapsible>
+            )}
+        </>
     );
 }
 
