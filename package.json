@@ -3,11 +3,6 @@
     "version": "0.0.1",
     "description": "",
     "main": "dist-electron/main.js",
-    "pnpm": {
-        "onlyBuiltDependencies": [
-            "electron"
-        ]
-    },
     "scripts": {
         "dev": "vite",
         "build": "vite build",
