@@ -10,7 +10,7 @@ todos:
       status: completed
     - id: signing-contract
       content: Add signed release metadata and Zod-validated public/admin APIs.
-      status: pending
+      status: completed
     - id: electron-updater
       content: Add Electron main-process updater, IPC, verifier, and installer spawn.
       status: pending

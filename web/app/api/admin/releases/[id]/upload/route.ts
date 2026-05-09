@@ -1,3 +1,12 @@
+import {
+    releaseIdParamsSchema,
+    uploadFormSchema,
+    validationError,
+} from "@/lib/api/validation";
+import {
+    SigningConfigurationError,
+    signReleasePayload,
+} from "@/lib/signing";
 import { releasesStore } from "@/lib/store";
 import type { Platform } from "@/lib/types";
 import { createHash, randomUUID } from "crypto";
@@ -29,7 +38,15 @@ export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
-    const { id } = await params;
+    const parsedParams = releaseIdParamsSchema.safeParse(await params);
+    if (!parsedParams.success) {
+        return NextResponse.json(
+            validationError(parsedParams.error),
+            { status: 400 },
+        );
+    }
+
+    const { id } = parsedParams.data;
     const release = releasesStore.getById(id);
 
     if (!release) {
@@ -40,22 +57,18 @@ export async function POST(
     }
 
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const platform = formData.get("platform") as Platform | null;
-
-    if (!file) {
+    const parsedForm = uploadFormSchema.safeParse({
+        file: formData.get("file"),
+        platform: formData.get("platform"),
+    });
+    if (!parsedForm.success) {
         return NextResponse.json(
-            { error: "No file provided" },
+            validationError(parsedForm.error),
             { status: 400 },
         );
     }
 
-    if (!platform || !["mac", "windows"].includes(platform)) {
-        return NextResponse.json(
-            { error: "Invalid platform" },
-            { status: 400 },
-        );
-    }
+    const { file, platform } = parsedForm.data;
 
     const fileName = sanitizeFileName(file.name);
     const extension = path.extname(fileName).toLowerCase();
@@ -77,6 +90,30 @@ export async function POST(
         contentTypesByExtension[extension] ||
         file.type ||
         "application/octet-stream";
+    let signature;
+
+    try {
+        signature = signReleasePayload({
+            releaseId: release.id,
+            version: release.version,
+            platform,
+            fileName,
+            fileSize: file.size,
+            sha256,
+        });
+    } catch (error) {
+        if (error instanceof SigningConfigurationError) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 503 },
+            );
+        }
+
+        return NextResponse.json(
+            { error: "Failed to sign release artifact" },
+            { status: 500 },
+        );
+    }
 
     const storageRoot = path.join(process.cwd(), "storage", "releases");
     const storageDir = path.join(storageRoot, release.id);
@@ -94,10 +131,10 @@ export async function POST(
         storagePath,
         contentType,
         sha256,
-        signature: null,
-        signatureAlgorithm: null,
-        signedAt: null,
-        signingKeyId: null,
+        signature: signature.signature,
+        signatureAlgorithm: signature.signatureAlgorithm,
+        signedAt: signature.signedAt,
+        signingKeyId: signature.signingKeyId,
         downloadUrl,
     });
 
@@ -107,6 +144,10 @@ export async function POST(
         fileSize: file.size,
         contentType,
         sha256,
+        signature: signature.signature,
+        signatureAlgorithm: signature.signatureAlgorithm,
+        signedAt: signature.signedAt,
+        signingKeyId: signature.signingKeyId,
         downloadUrl,
     });
 }

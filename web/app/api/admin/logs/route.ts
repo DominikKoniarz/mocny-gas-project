@@ -1,30 +1,23 @@
+import {
+    adminLogsQuerySchema,
+    validationError,
+} from "@/lib/api/validation";
 import { logsStore } from "@/lib/store";
-import type { LogFilters, Platform, UpdateStatus } from "@/lib/types";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
+    const parsedQuery = adminLogsQuerySchema.safeParse(
+        Object.fromEntries(searchParams),
+    );
 
-    const filters: LogFilters = {};
-
-    const platform = searchParams.get("platform");
-    if (platform && ["mac", "windows"].includes(platform)) {
-        filters.platform = platform as Platform;
+    if (!parsedQuery.success) {
+        return NextResponse.json(
+            validationError(parsedQuery.error),
+            { status: 400 },
+        );
     }
 
-    const status = searchParams.get("status");
-    if (
-        status &&
-        ["started", "downloaded", "installed", "failed"].includes(status)
-    ) {
-        filters.status = status as UpdateStatus;
-    }
-
-    const version = searchParams.get("version");
-    if (version) {
-        filters.version = version;
-    }
-
-    const logs = logsStore.getAll(filters);
+    const logs = logsStore.getAll(parsedQuery.data);
     return NextResponse.json(logs);
 }

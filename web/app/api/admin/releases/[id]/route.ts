@@ -1,12 +1,24 @@
+import {
+    releaseIdParamsSchema,
+    updateReleaseSchema,
+    validationError,
+} from "@/lib/api/validation";
 import { releasesStore } from "@/lib/store";
-import type { UpdateReleaseInput } from "@/lib/types";
 import { NextResponse } from "next/server";
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
-    const { id } = await params;
+    const parsedParams = releaseIdParamsSchema.safeParse(await params);
+    if (!parsedParams.success) {
+        return NextResponse.json(
+            validationError(parsedParams.error),
+            { status: 400 },
+        );
+    }
+
+    const { id } = parsedParams.data;
     const release = releasesStore.getById(id);
 
     if (!release) {
@@ -23,20 +35,32 @@ export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
-    const { id } = await params;
-    const body: UpdateReleaseInput = await request.json();
-
-    // If updating version, validate format
-    if (body.version && !body.version.match(/^\d+\.\d+\.\d+$/)) {
+    const parsedParams = releaseIdParamsSchema.safeParse(await params);
+    if (!parsedParams.success) {
         return NextResponse.json(
-            {
-                error: "Invalid version format. Use semantic versioning (e.g., 1.0.0)",
-            },
+            validationError(parsedParams.error),
             { status: 400 },
         );
     }
 
-    // Check for duplicate version (excluding current release)
+    let json: unknown;
+    try {
+        json = await request.json();
+    } catch {
+        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const parsedBody = updateReleaseSchema.safeParse(json);
+    if (!parsedBody.success) {
+        return NextResponse.json(
+            validationError(parsedBody.error),
+            { status: 400 },
+        );
+    }
+
+    const { id } = parsedParams.data;
+    const body = parsedBody.data;
+
     if (body.version) {
         const existing = releasesStore.getByVersion(body.version);
         if (existing && existing.id !== id) {
@@ -63,7 +87,15 @@ export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
-    const { id } = await params;
+    const parsedParams = releaseIdParamsSchema.safeParse(await params);
+    if (!parsedParams.success) {
+        return NextResponse.json(
+            validationError(parsedParams.error),
+            { status: 400 },
+        );
+    }
+
+    const { id } = parsedParams.data;
     const success = releasesStore.delete(id);
 
     if (!success) {

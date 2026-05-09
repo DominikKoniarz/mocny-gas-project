@@ -1,5 +1,10 @@
+import {
+    platformQuerySchema,
+    releaseIdParamsSchema,
+    validationError,
+} from "@/lib/api/validation";
+import { SIGNATURE_ALGORITHM } from "@/lib/signing";
 import { releasesStore } from "@/lib/store";
-import type { Platform } from "@/lib/types";
 import { createReadStream } from "fs";
 import { stat } from "fs/promises";
 import { NextResponse } from "next/server";
@@ -10,17 +15,28 @@ export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
-    const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const platform = searchParams.get("platform") as Platform | null;
-
-    if (!platform || !["mac", "windows"].includes(platform)) {
+    const parsedParams = releaseIdParamsSchema.safeParse(await params);
+    if (!parsedParams.success) {
         return NextResponse.json(
-            { error: "Platform is required. Use 'mac' or 'windows'" },
+            validationError(parsedParams.error),
             { status: 400 },
         );
     }
 
+    const { searchParams } = new URL(request.url);
+    const parsedQuery = platformQuerySchema.safeParse(
+        Object.fromEntries(searchParams),
+    );
+
+    if (!parsedQuery.success) {
+        return NextResponse.json(
+            validationError(parsedQuery.error),
+            { status: 400 },
+        );
+    }
+
+    const { id } = parsedParams.data;
+    const { platform } = parsedQuery.data;
     const release = releasesStore.getById(id);
 
     if (!release) {
@@ -43,6 +59,18 @@ export async function GET(
         return NextResponse.json(
             { error: `No ${platform} file available for this release` },
             { status: 404 },
+        );
+    }
+
+    if (
+        !file.sha256 ||
+        !file.signature ||
+        file.signatureAlgorithm !== SIGNATURE_ALGORITHM ||
+        !file.signedAt
+    ) {
+        return NextResponse.json(
+            { error: "Release artifact is unsigned" },
+            { status: 403 },
         );
     }
 
@@ -73,6 +101,9 @@ export async function GET(
             "Content-Length": fileStat.size.toString(),
             "Content-Disposition": `attachment; filename="${file.fileName.replace(/"/g, "")}"`,
             "X-Artifact-SHA256": file.sha256,
+            "X-Artifact-Signature": file.signature,
+            "X-Artifact-Signature-Algorithm": file.signatureAlgorithm,
+            "X-Artifact-Signed-At": file.signedAt.toISOString(),
             "X-Release-Version": release.version,
             "X-Release-Platform": platform,
         },

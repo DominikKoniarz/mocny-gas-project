@@ -1,5 +1,8 @@
+import {
+    createReleaseSchema,
+    validationError,
+} from "@/lib/api/validation";
 import { releasesStore } from "@/lib/store";
-import type { CreateReleaseInput } from "@/lib/types";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -8,19 +11,23 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    const body: CreateReleaseInput = await request.json();
+    let json: unknown;
+    try {
+        json = await request.json();
+    } catch {
+        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
-    // Validate version format
-    if (!body.version || !body.version.match(/^\d+\.\d+\.\d+$/)) {
+    const parsed = createReleaseSchema.safeParse(json);
+    if (!parsed.success) {
         return NextResponse.json(
-            {
-                error: "Invalid version format. Use semantic versioning (e.g., 1.0.0)",
-            },
+            validationError(parsed.error),
             { status: 400 },
         );
     }
 
-    // Check for duplicate version
+    const body = parsed.data;
+
     const existing = releasesStore.getByVersion(body.version);
     if (existing) {
         return NextResponse.json(

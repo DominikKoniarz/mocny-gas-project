@@ -8,6 +8,7 @@ import {
     updateLogs,
     type UpdateLogRow,
 } from "./db/schema";
+import { hasUsableSignatureMetadata } from "./signing";
 import type {
     CreateLogInput,
     CreateReleaseInput,
@@ -130,7 +131,10 @@ export const releasesStore = {
         return toRelease(release, files);
     },
 
-    getLatestEnabled: (platform?: Platform): Release | undefined => {
+    getLatestEnabled: (
+        platform?: Platform,
+        options?: { requireSigned?: boolean },
+    ): Release | undefined => {
         const rows = db
             .select()
             .from(releases)
@@ -140,9 +144,18 @@ export const releasesStore = {
         const hydrated = hydrateReleases(rows);
 
         return hydrated.find(
-            (release) =>
-                !platform ||
-                (platform === "mac" ? release.macFile : release.windowsFile),
+            (release) => {
+                if (!platform) return true;
+
+                const file =
+                    platform === "mac" ? release.macFile : release.windowsFile;
+                if (!file) return false;
+
+                return (
+                    !options?.requireSigned ||
+                    hasUsableSignatureMetadata(file)
+                );
+            },
         );
     },
 
