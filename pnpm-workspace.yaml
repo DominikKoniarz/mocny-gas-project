@@ -1,9 +1,0 @@
-allowBuilds:
-    electron: true
-    electron-winstaller: false
-    esbuild: false
-    msw: false
-
-nodeLinker: "hoisted"
-
-saveExact: true
