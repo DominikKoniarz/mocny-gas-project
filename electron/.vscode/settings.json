@@ -1,0 +1,9 @@
+{
+    "typescript.preferences.importModuleSpecifier": "non-relative",
+    "typescript.preferences.preferTypeOnlyAutoImports": true,
+
+    "editor.formatOnSave": true,
+
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "prettier.configPath": "./.prettierrc.json"
+}
