@@ -140,6 +140,75 @@ function parseUpdateMetadata(
     };
 }
 
+type StoredFileInfo = {
+    fileName: string;
+    storagePath: string;
+};
+
+async function validateMetadataUpload({
+    file,
+    platform,
+    releaseVersion,
+    artifact,
+    blockmap,
+}: {
+    file: File;
+    platform: Platform;
+    releaseVersion: string;
+    artifact: StoredFileInfo;
+    blockmap: StoredFileInfo;
+}): Promise<string | null> {
+    const text = await file.text();
+    let parsedMetadata: ParsedUpdateMetadata;
+    try {
+        parsedMetadata = parseUpdateMetadata(text, platform);
+    } catch (error) {
+        return error instanceof Error
+            ? error.message
+            : "Invalid update metadata file";
+    }
+
+    if (parsedMetadata.version && parsedMetadata.version !== releaseVersion) {
+        return "Metadata version does not match the release version";
+    }
+
+    if (
+        parsedMetadata.artifactName !== artifact.fileName ||
+        parsedMetadata.blockmapName !== blockmap.fileName
+    ) {
+        return "Metadata file names must match the uploaded artifact and blockmap";
+    }
+
+    if (!parsedMetadata.artifactSha512 || !parsedMetadata.blockmapSha512) {
+        return "Metadata must include sha512 checksums.";
+    }
+
+    const storageRoot = path.join(process.cwd(), "storage", "releases");
+    const artifactPath = path.join(storageRoot, artifact.storagePath);
+    const blockmapPath = path.join(storageRoot, blockmap.storagePath);
+
+    let artifactSha512: string;
+    let blockmapSha512: string;
+    try {
+        [artifactSha512, blockmapSha512] = await Promise.all([
+            hashFile(artifactPath, "sha512"),
+            hashFile(blockmapPath, "sha512"),
+        ]);
+    } catch {
+        return "Failed to verify checksum for stored files.";
+    }
+
+    if (artifactSha512 !== parsedMetadata.artifactSha512) {
+        return "Artifact checksum does not match metadata.";
+    }
+
+    if (blockmapSha512 !== parsedMetadata.blockmapSha512) {
+        return "Blockmap checksum does not match metadata.";
+    }
+
+    return null;
+}
+
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
@@ -232,79 +301,16 @@ export async function POST(
             );
         }
 
-        const text = await file.text();
-        let parsedMetadata: ParsedUpdateMetadata;
-        try {
-            parsedMetadata = parseUpdateMetadata(text, platform);
-        } catch (error) {
+        const validationError = await validateMetadataUpload({
+            file,
+            platform,
+            releaseVersion: release.version,
+            artifact,
+            blockmap,
+        });
+        if (validationError) {
             return NextResponse.json(
-                {
-                    error:
-                        error instanceof Error
-                            ? error.message
-                            : "Invalid update metadata file",
-                },
-                { status: 400 },
-            );
-        }
-
-        if (parsedMetadata.version && parsedMetadata.version !== release.version) {
-            return NextResponse.json(
-                {
-                    error: "Metadata version does not match the release version",
-                },
-                { status: 400 },
-            );
-        }
-
-        if (
-            parsedMetadata.artifactName !== artifact.fileName ||
-            parsedMetadata.blockmapName !== blockmap.fileName
-        ) {
-            return NextResponse.json(
-                {
-                    error:
-                        "Metadata file names must match the uploaded artifact and blockmap",
-                },
-                { status: 400 },
-            );
-        }
-
-        if (!parsedMetadata.artifactSha512 || !parsedMetadata.blockmapSha512) {
-            return NextResponse.json(
-                { error: "Metadata must include sha512 checksums." },
-                { status: 400 },
-            );
-        }
-
-        const storageRoot = path.join(process.cwd(), "storage", "releases");
-        const artifactPath = path.join(storageRoot, artifact.storagePath);
-        const blockmapPath = path.join(storageRoot, blockmap.storagePath);
-
-        let artifactSha512: string;
-        let blockmapSha512: string;
-        try {
-            [artifactSha512, blockmapSha512] = await Promise.all([
-                hashFile(artifactPath, "sha512"),
-                hashFile(blockmapPath, "sha512"),
-            ]);
-        } catch {
-            return NextResponse.json(
-                { error: "Failed to verify checksum for stored files." },
-                { status: 400 },
-            );
-        }
-
-        if (artifactSha512 !== parsedMetadata.artifactSha512) {
-            return NextResponse.json(
-                { error: "Artifact checksum does not match metadata." },
-                { status: 400 },
-            );
-        }
-
-        if (blockmapSha512 !== parsedMetadata.blockmapSha512) {
-            return NextResponse.json(
-                { error: "Blockmap checksum does not match metadata." },
+                { error: validationError },
                 { status: 400 },
             );
         }

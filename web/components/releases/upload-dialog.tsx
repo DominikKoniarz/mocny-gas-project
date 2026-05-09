@@ -34,6 +34,7 @@ interface FileUploadProps {
     file: File | null;
     onFileChange: (file: File | null) => void;
     isUploading: boolean;
+    isDisabled?: boolean;
 }
 
 function FileUpload({
@@ -44,6 +45,7 @@ function FileUpload({
     file,
     onFileChange,
     isUploading,
+    isDisabled = false,
 }: FileUploadProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -84,7 +86,8 @@ function FileUpload({
                     isDragging
                         ? "border-primary bg-primary/5"
                         : "border-muted-foreground/25",
-                    isUploading && "pointer-events-none opacity-50",
+                    (isUploading || isDisabled) &&
+                        "pointer-events-none opacity-50",
                 )}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -96,7 +99,7 @@ function FileUpload({
                     accept={accept}
                     className="absolute inset-0 cursor-pointer opacity-0"
                     onChange={(e) => onFileChange(e.target.files?.[0] || null)}
-                    disabled={isUploading}
+                    disabled={isUploading || isDisabled}
                 />
                 {file ? (
                     <div className="flex items-center justify-center gap-2">
@@ -254,6 +257,17 @@ export function UploadDialog({
             (file) => file.platform === platform && file.kind === kind,
         );
 
+    const macHasArtifact =
+        Boolean(macFiles.artifact) || Boolean(currentFiles("mac", "artifact"));
+    const macHasBlockmap =
+        Boolean(macFiles.blockmap) || Boolean(currentFiles("mac", "blockmap"));
+    const windowsHasArtifact =
+        Boolean(windowsFiles.artifact) ||
+        Boolean(currentFiles("windows", "artifact"));
+    const windowsHasBlockmap =
+        Boolean(windowsFiles.blockmap) ||
+        Boolean(currentFiles("windows", "blockmap"));
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!release) return;
@@ -332,6 +346,10 @@ export function UploadDialog({
                                         "mac",
                                         requirement.kind,
                                     )}
+                                    isDisabled={
+                                        requirement.kind === "metadata" &&
+                                        !(macHasArtifact && macHasBlockmap)
+                                    }
                                     file={macFiles[requirement.kind]}
                                     onFileChange={(file) =>
                                         setMacFiles((prev) => ({
@@ -359,6 +377,10 @@ export function UploadDialog({
                                         "windows",
                                         requirement.kind,
                                     )}
+                                    isDisabled={
+                                        requirement.kind === "metadata" &&
+                                        !(windowsHasArtifact && windowsHasBlockmap)
+                                    }
                                     file={windowsFiles[requirement.kind]}
                                     onFileChange={(file) =>
                                         setWindowsFiles((prev) => ({
