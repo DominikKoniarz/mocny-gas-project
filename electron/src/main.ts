@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import { createServer, type Server } from "http";
 import net from "net";
 import path from "path";
+import { UpdateService } from "./updater/service";
 
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
 
@@ -18,6 +19,7 @@ if (!app.requestSingleInstanceLock()) {
 
 let win: BrowserWindow | null;
 let staticServer: Server | null;
+const updateService = new UpdateService(() => win);
 
 const mimeTypes: Record<string, string> = {
     ".html": "text/html",
@@ -51,6 +53,11 @@ const PREFERRED_PORT = 4000;
 
 function registerIpcHandlers(): void {
     ipcMain.handle("api:hello", () => "xd");
+    ipcMain.handle("update:get-status", () => updateService.getStatus());
+    ipcMain.handle("update:check", () => updateService.checkForUpdate());
+    ipcMain.handle("update:download-and-install", () =>
+        updateService.downloadAndInstallUpdate(),
+    );
 }
 
 function isPortAvailable(port: number): Promise<boolean> {

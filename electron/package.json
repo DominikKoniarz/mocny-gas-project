@@ -7,7 +7,8 @@
         "dev": "vite",
         "build": "vite build",
         "build:electron": "vite build && electron-builder",
-        "build:electron:win": "vite build && electron-builder --win",
+        "build:electron:win": "vite build && electron-builder --win nsis --x64",
+        "build:electron:win:msi": "vite build && electron-builder --win msi --x64",
         "build:electron:mac": "vite build && electron-builder --mac",
         "build:electron:linux": "vite build && electron-builder --linux",
         "lint": "eslint .",
@@ -19,6 +20,11 @@
     "build": {
         "appId": "com.mocny-gas-project-desktop.app",
         "productName": "Mocny Gas Desktop Client",
+        "win": {
+            "target": [
+                "nsis"
+            ]
+        },
         "files": [
             "package.json",
             "dist/**/*",

@@ -13,10 +13,10 @@ todos:
       status: completed
     - id: electron-updater
       content: Add Electron main-process updater, IPC, verifier, and installer spawn.
-      status: pending
+      status: completed
     - id: electron-ui
       content: Build update status UI and primary check/install button.
-      status: pending
+      status: completed
     - id: verify-flow
       content: Run lint/typecheck and manual secure update flow.
       status: pending

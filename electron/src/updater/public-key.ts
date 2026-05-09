@@ -1,0 +1,4 @@
+export const UPDATE_SIGNING_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAIlpzyUf8CfL+wzwqY7D0PxkSGoR1dOd/w9CvSEEGnvU=
+-----END PUBLIC KEY-----
+`;

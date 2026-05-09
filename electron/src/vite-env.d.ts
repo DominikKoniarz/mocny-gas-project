@@ -1,5 +1,11 @@
 /// <reference types="vite/client" />
 
+import type {
+    CheckForUpdateResult,
+    InstallUpdateResult,
+    UpdateStatus,
+} from "./updater/types";
+
 interface ImportMetaEnv {
     readonly VITE_SERVER_URL?: string;
     readonly VITE_APP_MODE?: "1" | "2" | "3" | "4";
@@ -18,6 +24,12 @@ declare global {
     interface Window {
         api: {
             hello: () => Promise<string>;
+            checkForUpdate: () => Promise<CheckForUpdateResult>;
+            downloadAndInstallUpdate: () => Promise<InstallUpdateResult>;
+            getUpdateStatus: () => Promise<UpdateStatus>;
+            onUpdateStatus: (
+                listener: (status: UpdateStatus) => void,
+            ) => () => void;
             onMainProcessMessage: (
                 listener: (timestamp: string) => void,
             ) => () => void;
