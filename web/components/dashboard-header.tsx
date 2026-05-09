@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Releases" },
   { href: "/logs", label: "Update Logs" },
-]
+];
 
 export function DashboardHeader() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center gap-8">
+      <div className="container flex h-14 items-center gap-8 mx-auto px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+          <div className="xs:flex hidden h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -40,10 +40,10 @@ export function DashboardHeader() {
               key={item.href}
               href={item.href}
               className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                "rounded-md xs:px-3 px-2 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
                 pathname === item.href
                   ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground",
               )}
             >
               {item.label}
@@ -52,5 +52,5 @@ export function DashboardHeader() {
         </nav>
       </div>
     </header>
-  )
+  );
 }
