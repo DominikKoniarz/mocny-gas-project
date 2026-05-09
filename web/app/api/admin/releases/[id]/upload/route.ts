@@ -180,7 +180,7 @@ async function validateMetadataUpload({
     }
 
     if (!parsedMetadata.artifactSha512 || !parsedMetadata.blockmapSha512) {
-        return "Metadata must include sha512 checksums.";
+        return "Metadata must include sha512 checksums";
     }
 
     const storageRoot = path.join(process.cwd(), "storage", "releases");
@@ -195,15 +195,15 @@ async function validateMetadataUpload({
             hashFile(blockmapPath, "sha512"),
         ]);
     } catch {
-        return "Failed to verify checksum for stored files.";
+        return "Failed to verify checksum for stored files";
     }
 
     if (artifactSha512 !== parsedMetadata.artifactSha512) {
-        return "Artifact checksum does not match metadata.";
+        return "Artifact checksum does not match metadata";
     }
 
     if (blockmapSha512 !== parsedMetadata.blockmapSha512) {
-        return "Blockmap checksum does not match metadata.";
+        return "Blockmap checksum does not match metadata";
     }
 
     return null;

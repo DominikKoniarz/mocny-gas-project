@@ -85,6 +85,16 @@ function hydrateReleases(rows: ReleaseRow[]): Release[] {
     );
 }
 
+function sumDownloads(
+    files: ReleaseFileRow[],
+    predicate: (file: ReleaseFileRow) => boolean,
+): number {
+    return files.reduce(
+        (sum, file) => (predicate(file) ? sum + file.downloadCount : sum),
+        0,
+    );
+}
+
 export const releasesStore = {
     getAll: (): Release[] => {
         const rows = db
@@ -286,22 +296,18 @@ export const releasesStore = {
         return {
             totalReleases,
             activeReleases,
-            totalDownloads: files.reduce(
-                (sum, file) =>
-                    file.kind === "artifact" ? sum + file.downloadCount : sum,
-                0,
+            totalDownloads: sumDownloads(
+                files,
+                (file) => file.kind === "artifact",
             ),
-            macDownloads: files
-                .filter(
-                    (file) => file.platform === "mac" && file.kind === "artifact",
-                )
-                .reduce((sum, file) => sum + file.downloadCount, 0),
-            windowsDownloads: files
-                .filter(
-                    (file) =>
-                        file.platform === "windows" && file.kind === "artifact",
-                )
-                .reduce((sum, file) => sum + file.downloadCount, 0),
+            macDownloads: sumDownloads(
+                files,
+                (file) => file.platform === "mac" && file.kind === "artifact",
+            ),
+            windowsDownloads: sumDownloads(
+                files,
+                (file) => file.platform === "windows" && file.kind === "artifact",
+            ),
         };
     },
 };
