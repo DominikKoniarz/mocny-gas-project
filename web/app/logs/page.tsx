@@ -1,51 +1,55 @@
-"use client"
+"use client";
 
-import { useState, useCallback } from "react"
-import useSWR from "swr"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { LogsTable } from "@/components/logs/logs-table"
-import { LogFilters } from "@/components/logs/log-filters"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import type { UpdateLog, Platform, UpdateStatus } from "@/lib/types"
+import { useState, useCallback } from "react";
+import useSWR from "swr";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { LogsTable } from "@/components/logs/logs-table";
+import { LogFilters } from "@/components/logs/log-filters";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { UpdateLog, Platform, UpdateStatus } from "@/lib/types";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function LogsPage() {
-  const [platform, setPlatform] = useState<Platform | "all">("all")
-  const [status, setStatus] = useState<UpdateStatus | "all">("all")
+  const [platform, setPlatform] = useState<Platform | "all">("all");
+  const [status, setStatus] = useState<UpdateStatus | "all">("all");
 
-  const queryParams = new URLSearchParams()
-  if (platform !== "all") queryParams.set("platform", platform)
-  if (status !== "all") queryParams.set("status", status)
-  const queryString = queryParams.toString()
+  const queryParams = new URLSearchParams();
+  if (platform !== "all") queryParams.set("platform", platform);
+  if (status !== "all") queryParams.set("status", status);
+  const queryString = queryParams.toString();
 
-  const { data: logs, isLoading, mutate } = useSWR<UpdateLog[]>(
+  const {
+    data: logs,
+    isLoading,
+    mutate,
+  } = useSWR<UpdateLog[]>(
     `/api/admin/logs${queryString ? `?${queryString}` : ""}`,
-    fetcher
-  )
+    fetcher,
+  );
 
   const { data: stats } = useSWR<{
-    total: number
-    successful: number
-    failed: number
-    inProgress: number
-  }>("/api/admin/logs/stats", fetcher)
+    total: number;
+    successful: number;
+    failed: number;
+    inProgress: number;
+  }>("/api/admin/logs/stats", fetcher);
 
   const handleRefresh = useCallback(() => {
-    mutate()
-  }, [mutate])
+    mutate();
+  }, [mutate]);
 
   // Parse dates from JSON
   const parsedLogs = logs?.map((l) => ({
     ...l,
     timestamp: new Date(l.timestamp),
-  }))
+  }));
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
-      <main className="container py-6">
+      <main className="container py-6 px-4 sm:px-6 lg:px-8 mx-auto">
         <div className="flex flex-col gap-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Update Logs</h1>
@@ -57,7 +61,9 @@ export default function LogsPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Events
+                </CardTitle>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -79,7 +85,9 @@ export default function LogsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Successful</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Successful
+                </CardTitle>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -95,7 +103,9 @@ export default function LogsPage() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{stats?.successful ?? 0}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {stats?.successful ?? 0}
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -117,12 +127,16 @@ export default function LogsPage() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{stats?.failed ?? 0}</div>
+                <div className="text-2xl font-bold text-red-600">
+                  {stats?.failed ?? 0}
+                </div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  In Progress
+                </CardTitle>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -144,7 +158,9 @@ export default function LogsPage() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{stats?.inProgress ?? 0}</div>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {stats?.inProgress ?? 0}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -167,5 +183,5 @@ export default function LogsPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }
