@@ -236,8 +236,8 @@ const seedLogs: UpdateLog[] = [
 ];
 
 // In-memory stores
-let releases: Release[] = [...seedReleases];
-let logs: UpdateLog[] = [...seedLogs];
+const releases: Release[] = [...seedReleases];
+const logs: UpdateLog[] = [...seedLogs];
 
 // Releases store
 export const releasesStore = {

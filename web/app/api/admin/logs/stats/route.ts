@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server"
-import { logsStore } from "@/lib/store"
+import { logsStore } from "@/lib/store";
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  const stats = logsStore.getStats()
-  return NextResponse.json(stats)
+    const stats = logsStore.getStats();
+    return NextResponse.json(stats);
 }
