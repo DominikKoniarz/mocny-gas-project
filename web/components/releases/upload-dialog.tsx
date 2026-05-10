@@ -224,7 +224,7 @@ export function UploadDialog({
                 label: "Mac Metadata (latest-mac.yml)",
                 accept: ".yml",
                 helperText:
-                    "Drop latest-mac.yml here or click to browse (upload last)",
+                    "Drop latest-mac.yml here or click to browse (requires artifact + blockmap)",
             },
         ],
         windows: [
@@ -247,7 +247,7 @@ export function UploadDialog({
                 label: "Windows Metadata (latest.yml)",
                 accept: ".yml",
                 helperText:
-                    "Drop latest.yml here or click to browse (upload last)",
+                    "Drop latest.yml here or click to browse (requires artifact + blockmap)",
             },
         ],
     };

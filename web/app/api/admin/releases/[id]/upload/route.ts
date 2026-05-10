@@ -277,14 +277,14 @@ export async function POST(
         const artifact = releasesStore.getFileRecord(id, platform, "artifact");
         if (!artifact) {
             return NextResponse.json(
-                { error: "Upload the artifact file before the blockmap." },
+                { error: "Upload the artifact file before the blockmap" },
                 { status: 400 },
             );
         }
 
         if (`${artifact.fileName}.blockmap` !== fileName) {
             return NextResponse.json(
-                { error: "Blockmap file name must match the artifact file." },
+                { error: "Blockmap file name must match the artifact file" },
                 { status: 400 },
             );
         }
@@ -296,7 +296,7 @@ export async function POST(
 
         if (!artifact || !blockmap) {
             return NextResponse.json(
-                { error: "Upload the artifact and blockmap before metadata." },
+                { error: "Upload the artifact and blockmap before metadata" },
                 { status: 400 },
             );
         }
