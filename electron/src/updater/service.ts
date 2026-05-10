@@ -211,7 +211,7 @@ export class UpdateService {
         const serverUrl = getUpdateServerUrl();
         if (app.isPackaged && !isSecureUrl(serverUrl)) {
             throw new Error(
-                "Updates require an HTTPS update server for security. Set VITE_SERVER_URL to an https:// URL.",
+                "Updates require an HTTPS update server for security. Set the update server URL (VITE_SERVER_URL) to an https:// URL.",
             );
         }
         if (!app.isPackaged && !isSecureUrl(serverUrl)) {

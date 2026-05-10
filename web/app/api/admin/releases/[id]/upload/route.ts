@@ -5,6 +5,10 @@ import {
 } from "@/lib/api/validation";
 import { releasesStore } from "@/lib/store";
 import type { Platform, ReleaseFileKind } from "@/lib/types";
+import {
+    RELEASES_STORAGE_ROOT,
+    isSafeFileName,
+} from "@/lib/updates/storage";
 import { createHash } from "crypto";
 import { createReadStream } from "fs";
 import { mkdir, writeFile } from "fs/promises";
@@ -40,15 +44,6 @@ const contentTypesByExtension: Record<string, string> = {
     ".yml": "text/yaml",
     ".zip": "application/zip",
 };
-
-function isSafeFileName(fileName: string): boolean {
-    return (
-        fileName === path.basename(fileName) &&
-        !fileName.includes("..") &&
-        !fileName.includes("/") &&
-        !fileName.includes("\\")
-    );
-}
 
 function matchesExtension(fileName: string, extensions: string[]): boolean {
     const lower = fileName.toLowerCase();
@@ -188,9 +183,8 @@ async function validateMetadataUpload({
         return "Metadata must include SHA-512 checksums";
     }
 
-    const storageRoot = path.join(process.cwd(), "storage", "releases");
-    const artifactPath = path.join(storageRoot, artifact.storagePath);
-    const blockmapPath = path.join(storageRoot, blockmap.storagePath);
+    const artifactPath = path.join(RELEASES_STORAGE_ROOT, artifact.storagePath);
+    const blockmapPath = path.join(RELEASES_STORAGE_ROOT, blockmap.storagePath);
 
     let artifactSha512: string;
     let blockmapSha512: string;
@@ -334,8 +328,7 @@ export async function POST(
         file.type ||
         "application/octet-stream";
 
-    const storageRoot = path.join(process.cwd(), "storage", "releases");
-    const storageDir = path.join(storageRoot, release.id);
+    const storageDir = path.join(RELEASES_STORAGE_ROOT, release.id);
     const storagePath = path.join(release.id, fileName);
     const filePath = path.join(storageDir, fileName);
 

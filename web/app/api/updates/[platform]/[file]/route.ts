@@ -1,19 +1,15 @@
 import { platformSchema, validationError } from "@/lib/api/validation";
 import { releasesStore } from "@/lib/store";
+import {
+    RELEASES_STORAGE_ROOT,
+    isSafeFileName,
+    isSafeStoragePath,
+} from "@/lib/updates/storage";
 import { createReadStream } from "fs";
 import { stat } from "fs/promises";
 import { NextResponse } from "next/server";
 import path from "path";
 import { Readable } from "stream";
-
-function isSafeFileName(fileName: string): boolean {
-    return (
-        fileName === path.basename(fileName) &&
-        !fileName.includes("..") &&
-        !fileName.includes("/") &&
-        !fileName.includes("\\")
-    );
-}
 
 export async function GET(
     _request: Request,
@@ -66,10 +62,9 @@ export async function GET(
         );
     }
 
-    const storageRoot = path.resolve(process.cwd(), "storage", "releases");
-    const filePath = path.resolve(storageRoot, file.storagePath);
+    const filePath = path.resolve(RELEASES_STORAGE_ROOT, file.storagePath);
 
-    if (!filePath.startsWith(`${storageRoot}${path.sep}`)) {
+    if (!isSafeStoragePath(filePath)) {
         return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
     }
 
