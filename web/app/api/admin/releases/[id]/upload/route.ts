@@ -180,7 +180,7 @@ async function validateMetadataUpload({
     }
 
     if (!parsedMetadata.artifactSha512 || !parsedMetadata.blockmapSha512) {
-        return "Metadata must include sha512 checksums";
+        return "Metadata must include SHA-512 checksums";
     }
 
     const storageRoot = path.join(process.cwd(), "storage", "releases");
