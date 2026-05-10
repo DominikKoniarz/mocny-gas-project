@@ -58,10 +58,11 @@ function matchesExtension(fileName: string, extensions: string[]): boolean {
 async function hashFile(
     filePath: string,
     algorithm: "sha256" | "sha512",
+    encoding: "hex" | "base64",
 ): Promise<string> {
     const hash = createHash(algorithm);
     await pipeline(createReadStream(filePath), hash);
-    return hash.digest(algorithm === "sha512" ? "base64" : "hex");
+    return hash.digest(encoding);
 }
 
 type ParsedUpdateMetadata = {
@@ -191,8 +192,8 @@ async function validateMetadataUpload({
     let blockmapSha512: string;
     try {
         [artifactSha512, blockmapSha512] = await Promise.all([
-            hashFile(artifactPath, "sha512"),
-            hashFile(blockmapPath, "sha512"),
+            hashFile(artifactPath, "sha512", "base64"),
+            hashFile(blockmapPath, "sha512", "base64"),
         ]);
     } catch {
         return "Failed to verify checksum for stored files";
@@ -273,6 +274,7 @@ export async function POST(
         );
     }
 
+    // Enforce upload order: artifact -> blockmap -> metadata (metadata validates prior files).
     if (kind === "blockmap") {
         const artifact = releasesStore.getFileRecord(id, platform, "artifact");
         if (!artifact) {

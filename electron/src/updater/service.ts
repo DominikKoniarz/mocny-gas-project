@@ -220,6 +220,11 @@ export class UpdateService {
                 "Updates require an HTTPS update server for security. Check your update server configuration.",
             );
         }
+        if (!app.isPackaged && !isSecureUrl(serverUrl)) {
+            console.warn(
+                "Update server is using HTTP. Use HTTPS for production update security.",
+            );
+        }
 
         const feedUrl = `${serverUrl}/api/updates/${platform}`;
         autoUpdater.setFeedURL({ provider: "generic", url: feedUrl });

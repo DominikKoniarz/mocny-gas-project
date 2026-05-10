@@ -69,7 +69,7 @@ export async function GET(
         );
     }
 
-    return new NextResponse(new Uint8Array(content), {
+    return new NextResponse(content as BodyInit, {
         headers: {
             "Content-Type": file.contentType || "text/yaml",
             "Content-Length": fileStat.size.toString(),
