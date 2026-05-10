@@ -22,10 +22,10 @@ function getUpdateServerUrl(): string {
     ).replace(/\/$/, "");
 }
 
-function resolvePlatform(): UpdatePlatform | null {
+function resolvePlatform(): UpdatePlatform {
     if (process.platform === "darwin") return "mac";
     if (process.platform === "win32") return "windows";
-    return null;
+    throw new Error(`Unsupported update platform: ${process.platform}`);
 }
 
 function getCurrentVersion(): string {
@@ -83,9 +83,6 @@ export class UpdateService {
     async checkForUpdate(): Promise<CheckForUpdateResult> {
         try {
             const platform = resolvePlatform();
-            if (!platform) {
-                throw new Error("Unsupported update platform");
-            }
 
             this.configureFeed(platform);
             await autoUpdater.checkForUpdates();
@@ -107,9 +104,6 @@ export class UpdateService {
     async downloadAndInstallUpdate(): Promise<InstallUpdateResult> {
         try {
             const platform = resolvePlatform();
-            if (!platform) {
-                throw new Error("Unsupported update platform");
-            }
 
             this.configureFeed(platform);
 

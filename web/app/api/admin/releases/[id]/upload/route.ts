@@ -288,9 +288,13 @@ export async function POST(
             );
         }
 
-        if (`${artifact.fileName}.blockmap` !== fileName) {
+        const artifactExtension = path.extname(artifact.fileName);
+        const expectedSuffix = `${artifactExtension}.blockmap`;
+        if (!fileName.toLowerCase().endsWith(expectedSuffix.toLowerCase())) {
             return NextResponse.json(
-                { error: "Blockmap file name must match the artifact file" },
+                {
+                    error: `Blockmap file must end with ${expectedSuffix}`,
+                },
                 { status: 400 },
             );
         }
