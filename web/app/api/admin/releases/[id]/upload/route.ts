@@ -117,11 +117,15 @@ function parseUpdateMetadata(
     }
 
     if (!matchesExtension(artifactName, requiredExtensions[platform].artifact)) {
-        throw new Error("Update metadata points to the wrong artifact type");
+        throw new Error(
+            `Update metadata artifact must be ${requiredExtensions[platform].artifact.join(", ")} for ${platform}`,
+        );
     }
 
     if (!matchesExtension(blockmapName, requiredExtensions[platform].blockmap)) {
-        throw new Error("Update metadata points to the wrong blockmap type");
+        throw new Error(
+            `Update metadata blockmap must be ${requiredExtensions[platform].blockmap.join(", ")} for ${platform}`,
+        );
     }
 
     const artifactEntry = fileEntries.find((entry) => entry.url === artifactName);
